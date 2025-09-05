@@ -1,0 +1,68 @@
+# Visual Studio / .NET
+bin/
+obj/
+**/bin/
+**/obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.pidb
+*.aps
+*.pch
+*.mdb
+*.opendb
+
+# Rider / IntelliJ
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# NuGet
+*.nupkg
+project.lock.json
+packages/
+packages.config
+
+# OS generated files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+
+# Java
+# Compiled class file
+*.class
+# Log file
+*.log
+# BlueJ files
+*.ctxt
+# Mobile Tools for Java (J2ME)
+.mtj.tmp/
+
+# Maven
+target/
+
+# Gradle
+.gradle/
+build/
+
+# Temporary files
+*.tmp
+*.temp
+~$*
+
+# Ignore Rider caches
+/.idea/
+.idea/**/workspace.xml
+
+# dotnet publish output
+publish/
+
+# User-specific files
+*.suo
+*.user
+*.userprefs
