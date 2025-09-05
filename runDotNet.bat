@@ -8,4 +8,6 @@ if %errorlevel% neq 0 (
 cd dotnet
 echo Running .NET application...
 dotnet run
+echo Cleaning up...
+dotnet clean
 cd ..
