@@ -506,3 +506,10 @@ Cache size: 10
 ```
 
 > Caso ocorra algum erro, verifique se o .NET SDK está corretamente instalado e configurado no seu sistema.
+
+### Sugestões de Melhoria Adicionais
+
+1. Podemos incluir uma biblioteca de logging para melhorar o registro de informações e erros.
+2. Para melhorar a observabilidade do sistema, podemos adicionar métricas para monitorar o desempenho do download, como o tempo médio de download por recurso e o número de recursos baixados por segundo.
+3. Podemos adicionar o suporte a ferramentas de gestão de dependências e build, como NuGet, para facilitar a construção, teste e empacotamento do projeto.
+4. Utilizar variáveis de ambiente ou arquivos de configuração para definir parâmetros como o número de threads, o tempo limite (timeout) e o URL base, permitindo maior flexibilidade na configuração do sistema sem a necessidade de alterar o código-fonte.
