@@ -2,7 +2,7 @@
 
 ## Part 1 - Java Snippet
 
-Apenas para facilitar a leitura, foi utilizado o seguinte código para a análise:
+For readability, the following code snippet was used for the analysis:
 
 ```java
 public class FileProcessor {
@@ -31,40 +31,40 @@ public class FileProcessor {
 }
 ```
 
-### Premissas 
+### Assumptions
 
-Além do código fornecido, foram consideradas as seguintes premissas para limitar o escopo da análise:
+In addition to the provided code, the following assumptions were used to limit the scope of the analysis:
 
-1. O objetivo do programa é ler um arquivo de texto e converter todas as linhas para letras maiúsculas.
-2. A ordem das linhas no arquivo não é relevante para o resultado final.
-3. O arquivo de texto pode ser grande, então a eficiência e a escalabilidade são importantes.
+1. The program's goal is to read a text file and convert all lines to upper case.
+2. The order of lines in the file is not relevant for the final result.
+3. The text file may be large, so efficiency and scalability are important.
 
-### Problemas identificados
+### Identified issues
 
-#### Concorrência e Escalabilidade
-1. Utilizar uma estrutura de dados não thread-safe ('ArrayList') para armazenar as linhas processadas em paralelo, pode levar a condições de corrida e resultados inconsistentes. Por exemplo, se duas threads tentarem adicionar uma linha ao mesmo tempo, isso pode resultar na sobrescrita de dados.
+#### Concurrency and scalability
+1. Using a non-thread-safe data structure (`ArrayList`) to store processed lines while processing in parallel can lead to race conditions and inconsistent results. For example, if two threads try to add a line at the same time, data corruption may occur.
 
-2. Como o processo de leitura do arquivo é feito dentro do loop que cria as threads, cada thread está lendo o arquivo inteiro de forma independente. Consequentemente, cada linha do arquivo será processada múltiplas vezes (10 vezes, no caso), levando a aplicação gerar um resultado incorreto.
+2. Because the file reading happens inside the thread creation loop, each thread opens and reads the entire file independently. As a result, every line will be processed multiple times (10 times in this example), producing incorrect results.
 
-3. A quantidade de threads (10) é maior que o tamanho do pool de threads (5), dessa forma, algumas threads podem ficar ociosas enquanto outras estão processando.
+3. The number of tasks submitted (10) is larger than the thread pool size (5), which means some tasks will be queued while only 5 threads run concurrently.
 
-4. O método `shutdown()` do `ExecutorService` é chamado imediatamente após o envio das tarefas, sem aguardar a conclusão de todas as threads. Isso pode levar a um encerramento prematuro do executor antes que todas as linhas sejam processadas.
+4. `ExecutorService.shutdown()` is called immediately after submitting tasks, without waiting for their completion. This may cause the program to proceed before all lines are processed.
 
-Para resolver esses problemas, podemos fazer algumas melhorias no código para garantir que o processamento paralelo seja mais eficiente e seguro:
+To solve these problems, several improvements can be applied to ensure safe and efficient parallel processing:
 
-1. Ler o arquivo em uma única thread e distribuir as linhas para serem processadas através de uma fila bloqueante (BlockingQueue) para que as threads responsáveis pelo processamento dos dados possam consumi-las de forma segura. Dessa forma, garantimos que cada linha seja processada uma única vez (único producer) e o processamento de converter para maiúsculas seja feito em paralelo (múltiplos consumers).
+1. Read the file with a single producer thread and distribute lines to worker threads through a `BlockingQueue`. This guarantees each line is produced once and processed by multiple consumers in parallel.
 
-2. Para armazenar o resultado das linhas processadas, podemos utilizar uma lista sincronizada ou uma coleção thread-safe, como `Collections.synchronizedList(new ArrayList<>())`. Dessa forma, caso duas threads tentem adicionar o resultado do processamento ao mesmo tempo, a estrutura de dados garantirá a integridade dos dados.
+2. Use a synchronized list or a thread-safe collection (e.g. `Collections.synchronizedList(new ArrayList<>())`) to store processed results so concurrent adds are safe.
 
-3. Ajustar o número de threads no pool para ser igual ao número de tarefas, garantindo que todas as threads possam ser utilizadas eficientemente.
+3. Match the number of consumer threads with desired concurrency so resources are used efficiently.
 
-4. Após a invocação de `shutdown()`, utilizar `awaitTermination()` para garantir que o programa aguarde a conclusão de todas as tarefas antes de prosseguir.
+4. After calling `shutdown()`, use `awaitTermination()` to wait for tasks to finish before proceeding.
 
-5. Utilizar a interface `put` do `BlockingQueue` para adicionar linhas à fila, garantindo que o produtor espere se a fila estiver cheia, evitando perda de dados. Isso associado a um tamanho máximo para a fila, permite controlar o uso de memória e evitar que essa fila cresça indefinidamente para arquivos muito grandes.
+5. Use `BlockingQueue.put()` on the producer side to apply backpressure when the queue is full. Combined with a bounded queue size this prevents unbounded memory growth.
 
-6. Utilizar a interface `poll` do `BlockingQueue`, informando um tempo máximo de espera, caso a lista esteja vazia, para evitar que as threads fiquem bloqueadas indefinidamente caso a fila esteja vazia e o produtor já tenha terminado de adicionar linhas.
+6. On the consumer side use `BlockingQueue.poll(timeout)` to avoid consumers blocking indefinitely once the producer has finished.
 
-Ao fim dessa refatoração teríamos o seguinte código:
+A refactored example would look like this:
 
 ```java
 
@@ -126,27 +126,26 @@ public class FileProcessor {
         System.out.println("Lines processed: " + lines.size());
     }
 }
-
 ```
 
-#### Má Práticas de Codificação
+#### Coding anti-patterns
 
-1. Violação do princípio de única responsabilidade: Tanto a leitura do arquivo quanto o processamento das linhas estão sendo feitas na mesma classe. Podemos separar a lógica de leitura do arquivo e processamento das linhas em classes distintas, como `LineProducer` e `LineConsumer`. Isso melhora a legibilidade e a manutenção do código.
+1. Single Responsibility Principle violation: file reading and line processing are mixed in the same class. Splitting responsibilities into `LineProducer` and `LineConsumer` improves readability and maintainability.
 
-2. Uso de valores mágicos: O número 5 (número de threads) é usados diretamente no código, o que dificulta a compreensão do seu significado. Podemos definir uma constante para esse valores, melhorando a legibilidade do código. 
+2. Magic numbers: the literal `5` used for thread count should be a named constant for clarity.
 
-3. O nome do arquivo está hardcoded, o que dificulta a reutilização do código. Podemos passar o nome do arquivo como um argumento para o programa e definir um valor padrão caso nenhum argumento seja fornecido.
+3. Hard-coded filename reduces reusability. Accept the filename as a program argument with a sensible default.
 
-4. Utilização do `System.out.println` para exibir o número de linhas processadas. Em um ambiente de produção, é mais apropriado utilizar uma biblioteca de logging para registrar informações, erros e depurações. Para esse exercicio, mantivemos o `System.out.println`, mas em um cenário real, consideraríamos o uso de uma biblioteca de logging como SLF4J que permite desacoplar a lógica de logging do código de negócios.
+4. Using `System.out.println` for reporting is acceptable in a small exercise, but in production use a logging library (SLF4J/Logback) to decouple logging from business code.
 
-5. Nome de variáveis pouco significativas: Nomes como `lines` e `executor` são genéricos e não transmitem claramente seu propósito. Utilizar nomes mais descritivos, como `processedLines` e `consumerExecutor`, pode melhorar a clareza do código.
+5. Poorly named variables reduce readability; prefer descriptive names like `processedLines` and `consumerExecutor`.
 
-6. Falta de tratamento adequado de exceções: Atualmente, as exceções são capturadas e impressas no console, mas não há um tratamento adequado para lidar com erros. Podemos melhorar o tratamento de exceções, registrando os erros em um log e implementando uma estratégia de recuperação ou notificação adequada.
+6. Exception handling is minimal: exceptions are printed but not handled. Improve by logging and defining recovery or notification strategies.
 
-7. Utilização de `try-with-resources` para garantir o fechamento adequado do `BufferedReader`, evitando possíveis vazamentos de recursos.
+7. Use try-with-resources for `BufferedReader` to ensure resources are always released.
 
-### Código Refatorado
-Ao fim teríamos o seguinte código:
+### Refactored code
+An improved structure could look like this:
 
 ```java
 // FileProcessor.java
@@ -260,9 +259,9 @@ public class LineConsumer {
 }
 ```
 
-### Executando o código
+### Running the code
 
-Para executar o código refatorado, utilize o script [runJava.bat](runJava.bat).
+Use the [runJava.bat](runJava.bat) script to run the refactored Java code:
 
 ```bash
 .\runJava.bat
@@ -277,24 +276,23 @@ Cleaning up...
 Done.
 ```
 
-> Caso ocorra algum erro, verifique se o Java está corretamente instalado e configurado no seu sistema.
+> If an error occurs, verify that Java is installed and configured correctly on your system.
 
-### Sugestões de Melhoria Adicionais
+### Additional improvement suggestions
 
-Além das melhorias já implementadas, podemos considerar as seguintes sugestões para aprimorar ainda mais o código:
+In addition to the implemented changes, consider the following improvements:
 
-1. Caso seja necessário ter mais de uma estrategia de de produção ou consumo, podemos definir interfaces para `LineProducer` e `LineConsumer`, permitindo a implementação de diferentes estratégias de leitura e processamento de linhas.
-2. Podemos encapsular a lógica de criação e gerenciamento dos executores em uma classe dedicada, como `ExecutorManager`, para melhorar a organização do código.
-3. Como já mencionado, podemos incluir uma biblioteca de logging para melhorar o registro de informações e erros.
-4. Para melhorar a observabilidade do sistema, podemos adicionar métricas para monitorar o desempenho do processamento de linhas, como o tempo médio de processamento por linha e o número de linhas processadas por segundo.
-5. Podemos adicionar o suporte a ferramentas de gestão de dependências e build, como Maven ou Gradle, para facilitar a construção, teste e empacotamento do projeto.
-6. Utilizar variáveis de ambiente ou arquivos de configuração para definir parâmetros como o número de threads, o tamanho da fila e o caminho do arquivo, permitindo maior flexibilidade na configuração do sistema sem a necessidade de alterar o código-fonte.
-
+1. If multiple production or consumption strategies are required, define interfaces for `LineProducer` and `LineConsumer` to allow alternative implementations.
+2. Encapsulate executor creation and management in an `ExecutorManager` class for better organization.
+3. Add a logging library to improve observability and error reporting.
+4. Add metrics to monitor processing performance, e.g. average processing time per line and throughput.
+5. Add support for build tools like Maven or Gradle to simplify building, testing and packaging the project.
+6. Use environment variables or configuration files to set parameters such as thread counts, queue size and file path instead of hard-coding values.
 
 
 ## Part 2 - C# Snippet
 
-Apenas para facilitar a leitura, foi utilizado o seguinte código para a análise:
+For readability, the following C# code was used for the analysis:
 ```csharp
 public class Downloader
 {
@@ -319,36 +317,36 @@ public class Downloader
 }
 ```
 
-### Premissas 
+### Assumptions
 
-Além do código fornecido, foram consideradas as seguintes premissas para limitar o escopo da análise:
+The following assumptions were used to limit the scope of the analysis:
 
-1. O objetivo do programa é carregar uma quantidade de recursos, a partir de uma url base, e armazená-los em um cache em memória. 
-2. O formato da url para carregar os recursos deve seguir o padrão: `{url_base}/{i}`, onde `url_base` deve ser uma url válida e `i` é um número inteiro sequencial de 0 até N-1, onde N é a quantidade de recursos a serem carregados.
-3. Mesmo que uma página retorne um erro (por exemplo, 404 Not Found), a aplicação irá guardar o erro no cache. 
-4. Ao final da execução, deve ser exibido o número de recursos carregados no cache.
+1. The program's goal is to load a number of resources from a base URL and store them in an in-memory cache.
+2. The URL format is `{url_base}/{i}`, where `url_base` is a valid URL and `i` is an integer from 0 to N-1, where N is the number of resources to fetch.
+3. Even if a request returns an error (e.g., 404 Not Found), the application will record the outcome in the cache.
+4. At the end of execution, the program must display the number of resources stored in the cache.
 
-### Problemas identificados
+### Identified issues
 
-#### Concorrência e Escalabilidade
+#### Concurrency and scalability
 
-1. A estrutura de dados utilizada para armazenar o cache (`List<String>`) não é adequada por ser uma coleção não thread-safe. Isso pode levar a condições de corrida e resultados inconsistentes, como perda de dados ou exceções em tempo de execução, quando múltiplas threads tentam adicionar dados ao cache simultaneamente. Além disso, o uso de uma lista simples pode não ser eficiente para operações de busca ou remoção, especialmente se o cache crescer significativamente, impactando a escalabilidade do sistema. Uma opção melhor seria utilizar um `ConcurrentDictionary`, que é thread-safe e oferece melhor desempenho para operações de leitura e escrita concorrentes.
-2. As chamadas para `DownloadAsync` são iniciadas, mas não aguardadas. Isso significa que o método `Main` pode terminar sua execução antes que todas as tarefas de download sejam concluídas, resultando em um cache incompleto e um tamanho de cache incorreto sendo exibido.
-3. Não há nenhum limite de paralelismo para execução do `DownloadAsync`, o que pode sobrecarregar o servidor ou a rede. Para contornar esse problema, podemos definir um limite máximo de paralelismo, utilizando `Parallel.ForEachAsync` com a opção `MaxDegreeOfParallelism`.
-4. Não é uma boa prática criar uma nova instancia do `HttpClient` para cada requisição HTTP. Uma vez que tal pratica pode ocasionar o esgotamento de sockets e cenários de alta carga.
+1. The cache is implemented as a non-thread-safe `List<string>`. This can cause race conditions and inconsistent results when multiple threads add data concurrently. A `ConcurrentDictionary` or other concurrent collection is preferable for concurrent reading and writing.
+2. `DownloadAsync` calls are started but not awaited. `Main` can exit before downloads complete, producing an incomplete cache and an incorrect cache size.
+3. There's no parallelism limit; too many concurrent requests can overload the network or the remote server. Use `Parallel.ForEachAsync` with `MaxDegreeOfParallelism` option to limit concurrency.
+4. Creating a new `HttpClient` per request is bad practice and can exhaust sockets under load. Reuse a single `HttpClient` or use `IHttpClientFactory`.
 
 
-#### Má Práticas de Codificação
-1. Violação do princípio de única responsabilidade: Tanto o gerenciamento do cache quanto o download dos dados estão sendo feitos na mesma classe. Podemos separar a lógica de download e gerenciamento do cache em classes distintas, como `DownloaderManager` e `CacheManager`. Isso melhora a legibilidade e a manutenção do código.
-2. Uso de valores mágicos: O número 10 (número de downloads) é usado diretamente no código, o que dificulta a compreensão do seu significado. Podemos definir uma variável para esse valor, melhorando a legibilidade do código.
-3. O URL base está hardcoded, o que dificulta a reutilização do código. Podemos passar o URL base como um argumento para o programa e definir um valor padrão caso nenhum argumento seja fornecido. Além disso, podemos criar uma classe para encapsular a lógica de construção das URLs, permitindo incluir validações nesse processo.
-4. Utilização do `Console.WriteLine` para exibir o número de páginas carregadas no cache. Em um ambiente de produção, é mais apropriado utilizar uma biblioteca de logging para registrar informações, erros e depurações. Para esse exercício, mantivemos o `Console.WriteLine`, mas em um cenário real, consideraríamos o uso de uma biblioteca de logging como Serilog ou NLog que oferece mais funcionalidades e flexibilidade.
-5. Nome de variáveis pouco significativas: Nomes como `cache` e `client` são genéricos e não transmitem claramente seu propósito. Utilizar nomes mais descritivos, como `downloadedDataCache` e `httpClient`, pode melhorar a clareza do código.
-6. Falta de tratamento adequado de exceções: Atualmente, as exceções não são capturadas, o que pode levar a falhas silenciosas ou crashes inesperados. Podemos melhorar o tratamento de exceções, registrando os erros em um log e implementando uma estratégia de recuperação ou notificação adequada.
-7. Utilizar o `HTTPClient` sem definir um tempo limite (timeout) pode causar a aplicação ficar esperando mais do que deveria, caso o servidor demore a responder ou não responda.
+#### Coding anti-patterns
+1. Single Responsibility Principle violation: cache management and downloading are mixed in one class. Separate responsibilities into `DownloaderManager` and `CacheManager`.
+2. Magic numbers: the literal `10` should be named for clarity.
+3. Hard-coded base URL reduces flexibility. Accept the base URL as an argument and validate it. A `URLBuilder` class can encapsulate this logic.
+4. Use a logging library instead of `Console.WriteLine` for production systems. For this exercise, we will keep it simple.
+5. Use descriptive variable names instead of `cache` and `client`.
+6. Improve exception handling and include timeouts for HTTP requests to avoid indefinite waits.
+7. Use `HttpClient` with a `SocketsHttpHandler` to configure connection pooling and timeouts.
 
-### Código Refatorado
-Ao fim teríamos o seguinte código:
+### Refactored code
+An improved implementation could look like this:
 ```csharp
 // CacheManager.cs
 public class Downloader
@@ -412,6 +410,7 @@ public class CacheManager
         return _cache.Count;
     }
 }
+
 
 
 // DownloaderManager.cs
@@ -490,11 +489,11 @@ public class URLBuilder
         return urls;
     }
 }
-````
+```
 
-### Executando o código
+### Running the code
 
-Para executar o código refatorado, utilize o script [runDotNet.bat](runDotNet.bat).
+Use the [runDotNet.bat](runDotNet.bat) script to run the refactored .NET application:
 
 ```bash
 .\runDotNet.bat
@@ -505,11 +504,11 @@ Downloads completed
 Cache size: 10
 ```
 
-> Caso ocorra algum erro, verifique se o .NET SDK está corretamente instalado e configurado no seu sistema.
+> If an error happens, verify the .NET SDK is installed and configured correctly on your system.
 
-### Sugestões de Melhoria Adicionais
+### Additional improvement suggestions
 
-1. Podemos incluir uma biblioteca de logging para melhorar o registro de informações e erros.
-2. Para melhorar a observabilidade do sistema, podemos adicionar métricas para monitorar o desempenho do download, como o tempo médio de download por recurso e o número de recursos baixados por segundo.
-3. Podemos adicionar o suporte a ferramentas de gestão de dependências e build, como NuGet, para facilitar a construção, teste e empacotamento do projeto.
-4. Utilizar variáveis de ambiente ou arquivos de configuração para definir parâmetros como o número de threads, o tempo limite (timeout) e o URL base, permitindo maior flexibilidade na configuração do sistema sem a necessidade de alterar o código-fonte.
+1. Add a logging library to improve observability and error reporting.
+2. Add metrics to monitor download performance such as average download time and throughput.
+3. Add NuGet packaging and dependency management to facilitate building, testing and packaging.
+4. Use environment variables or configuration files for parameters like thread counts, timeouts and base URL to avoid hardcoding values in source.
