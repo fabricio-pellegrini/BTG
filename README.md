@@ -323,9 +323,10 @@ public class Downloader
 
 Além do código fornecido, foram consideradas as seguintes premissas para limitar o escopo da análise:
 
-1. O objetivo do programa é carregar páginas web em um cache em memória.
-2. Mesmo que uma página retorne um erro (por exmplo, 404 Not Found), a aplicação irá guardar o erro no cache. 
-3. Ao final da execução, deve ser exibido o número de páginas carregadas no cache.
+1. O objetivo do programa é carregar uma quantidade de recursos, a partir de uma url base, e armazená-los em um cache em memória. 
+2. O formato da url para carregar os recursos deve seguir o padrão: `{url_base}/{i}`, onde `url_base` deve ser uma url válida e `i` é um número inteiro sequencial de 0 até N-1, onde N é a quantidade de recursos a serem carregados.
+3. Mesmo que uma página retorne um erro (por exemplo, 404 Not Found), a aplicação irá guardar o erro no cache. 
+4. Ao final da execução, deve ser exibido o número de recursos carregados no cache.
 
 ### Problemas identificados
 
