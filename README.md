@@ -1,19 +1,5 @@
 # Senior Developer Technical Assessment – Debugging & Code Review
 
-## Instructions 
-
-1. Review the provided code carefully.
-2. Identify all problems you see (bugs, bad practices, scalability issues, security risks, etc.).
-3. For each problem, explain why it is an issue and how you would fix it.
-4. You may write your answers in text, or include corrected code snippets where relevant.
-5. There is no single correct answer – we are evaluating your reasoning, experience, and
-ability to justify technical decisions.
-
-For each snippet:
-1. Identify the problems (bugs, concurrency issues, inefficiencies, bad practices).
-2. Explain why each problem is critical in a real-world system.
-3. Suggest improvements (or provide a corrected version of the code if you prefer).
-
 ## Part 1 - Java Snippet
 
 Apenas para facilitar a leitura, foi utilizado o seguinte código para a análise:
